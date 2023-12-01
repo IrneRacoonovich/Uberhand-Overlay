@@ -40,9 +40,9 @@ public:
         return rootFrame;
     }
 
-    std::map <std::string,std::string> parseJson (std::string jsonPath, std::string selectedItem, std::vector<std::string> offsets = {"32","48","16","36","52","64","56","68","60","76"}) {
-        std::map <std::string,std::string> newKipdata;
-        std::vector<std::string> offsetStrs = findHexDataOffsets(kipPath, "43555354"); // 43555354 is a CUST
+    std::map <size_t, std::string> parseJson(std::string jsonPath, std::string selectedItem, std::vector<size_t> offsets = { 32,48,16,36,52,64,56,68,60,76 }) {
+        std::map <size_t, std::string> newKipdata;
+        auto baseOffset = findDataOffsets(kipPath.c_str(), { 'C','U','S','T' });
 
         json_t* jsonData = readJsonFromFile(jsonPath);
         if (jsonData) {
@@ -55,17 +55,23 @@ public:
                 if (json_object_size(item) != offsets.size() + 2) { return newKipdata; }
 
                 if (json_string_value(keyValue) == selectedItem) {
-                    const char *key;
-                    json_t *value;
+                    const char* key;
+                    json_t* value;
                     int j = 0;
                     json_t* t_offsettsJ = json_object_get(item, "t_offsets");
                     if (t_offsettsJ) {
-                        offsets = parseString(json_string_value(t_offsettsJ), ',');
+                        offsets = {};
+                        std::istringstream iss(json_string_value(t_offsettsJ));
+                        std::string token;
+
+                        while (std::getline(iss, token, ',')) {
+                            offsets.push_back(std::stoul(token));
+                        }
                     }
-                    
-                    if (!offsetStrs.empty()) {
-                        for(auto& offset : offsets) {
-                            offset = std::to_string(std::stoi(offset) + std::stoi(offsetStrs[0])); // count from "C" letter
+
+                    if (!baseOffset.empty()) {
+                        for (auto& offset : offsets) {
+                            offset = offset + baseOffset[0]; // count from "C" letter
                         }
                     }
                     json_object_foreach(item, key, value) {
@@ -82,6 +88,7 @@ public:
                     break;
                 }
             }
+            json_decref(jsonData);
         }
         return newKipdata;
     }
@@ -91,13 +98,13 @@ public:
             tsl::goBack();
             return true;
         }
-         if (keysDown & KEY_A) {
-            std::map <std::string,std::string> offsetData = parseJson(jsonPath, specficKey);
+        if (keysDown & KEY_A) {
+            auto offsetData = parseJson(jsonPath, specficKey);
             hexEditByOffsetF(kipPath, offsetData);
             applied = true;
             tsl::goBack();
             return true;
-         }
+        }
         return false;
     }
 };

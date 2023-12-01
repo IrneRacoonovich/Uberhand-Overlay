@@ -2,18 +2,41 @@
 #include <cstdio>
 #include <time.h>
 
-void logMessage(const std::string& message) {
-    std::time_t currentTime = std::time(nullptr);
-    std::string logEntry = std::asctime(std::localtime(&currentTime));
-    std::size_t lastNonNewline = logEntry.find_last_not_of("\r\n");
-    if (lastNonNewline != std::string::npos) {
-        logEntry.erase(lastNonNewline + 1);
-    }
-    logEntry = "[" + logEntry + "] " + message + "\n";
+// uncomment to activate debug logging
+// #define DEBUG
 
-    FILE* file = fopen("sdmc:/config/uberhand/log.txt", "a");
-    if (file != nullptr) {
-        fputs(logEntry.c_str(), file);
-        fclose(file);
+namespace {
+
+    void log(const std::string& message) {
+        FILE* file = fopen("sdmc:/config/uberhand/log.txt", "a");
+        if (file != nullptr) {
+            std::time_t currentTime = std::time(nullptr);
+            const char* time = std::asctime(std::localtime(&currentTime));
+            fprintf(file, "[%s] %s\n", time, message.c_str());
+            fclose(file);
+        }
     }
+
+}
+
+inline void logMessage(const std::string& message) {
+    log(message);
+}
+
+inline void logInfo(const std::string& message) {
+    log("[INFO] " + message);
+}
+
+inline void logError(const std::string& message) {
+    log("[ERROR] " + message);
+}
+
+inline void logWarning(const std::string& message) {
+    log("[WARN] " + message);
+}
+
+inline void logDebug(const std::string& message) {
+#ifdef DEBUG
+    log("[DEBUG] " + message);
+#endif
 }

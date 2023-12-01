@@ -170,7 +170,7 @@ public:
         std::string sourceIni = "";
         std::string sectionIni = "";
         std::string keyIni = "";
-        std::string offset = "";
+        size_t offset = 0;
         std::pair<std::string, int> textDataPair;
 
         constexpr int lineHeight = 20;  // Adjust the line height as needed
@@ -216,7 +216,7 @@ public:
                     }
                     useJson = true;
                     if (cmd.size() > 3) {
-                        offset = cmd[3];
+                        offset = std::stoul(cmd[3]);
                         markCurKip = true;
                     }
                 } else if (cmd[0] == "json_mark_cur_ini") {
@@ -267,8 +267,8 @@ public:
                     }), fontSize + lineHeight);
                     rootFrame->setContent(list);
                     return rootFrame;
-                } else {
-                    std::string currentHex = ""; // Is used to mark current value from the kip
+                }
+                else {
                     bool detectSize = true;
                     bool searchCurrent = markCurKip || markCurIni ? true : false;
                     // create list of data in the json 
@@ -284,18 +284,17 @@ public:
                                     json_t* hexValue = json_object_get(item, "hex");
                                     json_t* colorValue = json_object_get(item, "color");
                                     if (markCurKip && hexValue && searchCurrent) {
-                                        char* hexValueStr = (char*)json_string_value(hexValue);
+                                        auto bytes = hexStringToBytes(json_string_value(hexValue));
                                         if (detectSize) {
-                                            size_t hexLength = strlen(hexValueStr);
-                                            currentHex = readHexDataAtOffset("/atmosphere/kips/loader.kip", "43555354", offset, hexLength/2); // Read the data from kip with offset starting from 'C' in 'CUST'
+                                            auto currentHex = readHexDataAtOffset("/atmosphere/kips/loader.kip", { 'C','U','S','T' }, offset, bytes.size()); // Read the data from kip with offset starting from 'C' in 'CUST'
                                             detectSize = false;
-                                        }
-                                        if (hexValueStr == currentHex) {
-                                            name = std::string(json_string_value(keyValue)) + " - Current";
-                                            searchCurrent = false;
-                                        }
-                                        else {
-                                            name = json_string_value(keyValue);
+                                            if (bytes == currentHex) {
+                                                name = std::string(json_string_value(keyValue)) + " - Current";
+                                                searchCurrent = false;
+                                            }
+                                            else {
+                                                name = json_string_value(keyValue);
+                                            }
                                         }
                                     } else if (markCurIni && hexValue && searchCurrent) {
                                         char* iniValueStr = (char*)json_string_value(hexValue);
@@ -658,10 +657,13 @@ public:
         if (!kipVersion.empty()) {
             constexpr int lineHeight = 20;  // Adjust the line height as needed
             constexpr int fontSize = 19;    // Adjust the font size as needed
-            std::string curKipVer = readHexDataAtOffset("/atmosphere/kips/loader.kip", "43555354", "4", 3);
-            int i_curKipVer = reversedHexToInt(curKipVer);
-            if (std::stoi(kipVersion) != i_curKipVer) {
-                list->addItem(new tsl::elm::CustomDrawer([lineHeight, fontSize](tsl::gfx::Renderer *renderer, s32 x, s32 y, s32 w, s32 h) {
+            auto curKipVersionBytes = readHexDataAtOffset("/atmosphere/kips/loader.kip", { 'C','U','S','T' }, 4, 4);
+            int curKipVersion = 0; // reversedHexToInt(curKipVer);
+            for (const u8 byte : curKipVersionBytes) {
+                curKipVersion = (curKipVersion << 8) & byte;
+            }
+            if (std::stoi(kipVersion) != curKipVersion) {
+                list->addItem(new tsl::elm::CustomDrawer([lineHeight, fontSize](tsl::gfx::Renderer* renderer, s32 x, s32 y, s32, s32) {
                 renderer->drawString("Kip version mismatch.\nUpdate the requirements to use this\npackage.", false, x, y + lineHeight, fontSize, a(tsl::style::color::ColorText));
                 }), fontSize * 3 + lineHeight);
                 rootFrame->setContent(list);

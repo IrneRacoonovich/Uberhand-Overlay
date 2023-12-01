@@ -25,7 +25,7 @@ json_t* readJsonFromFile(const std::string& filePath) {
     // Read the file content into a buffer
     char* buffer = static_cast<char*>(malloc(fileSize + 1));
     if (!buffer) {
-        //fprintf(stderr, "Memory allocation error.\n");
+        logError("readJsonFromFile(" + filePath + "): Memory allocation error.");
         fclose(file);
         return nullptr;
     }
