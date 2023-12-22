@@ -47,6 +47,21 @@ std::string decimalToReversedHex(const std::string& decimalStr, int order = 2) {
     return reversedHex;
 }
 
+std::vector<uint8_t> hexStringToBytes(const std::string& hexString) {
+    std::vector<uint8_t> result(hexString.length() / 2 + hexString.length() % 2);
+
+    for (size_t i = 0; i < hexString.length(); i += 2) {
+        result.emplace_back(std::stoi(hexString.substr(i, 2), nullptr, 16));
+    }
+
+    if (result.capacity() > result.size()) { // Should not be true. For debug purpose in case the capacity calculation above is wrong
+        logMessage("hexStringToBytes: Had to shrink. capacity: " + std::to_string(result.capacity()) + ", size: " + std::to_string(result.size()) + ", string: \"" + hexString + "\"");
+        result.shrink_to_fit();
+    }
+
+    return result;
+}
+
 std::vector<size_t> findHexDataOffsetsF(FILE* const file, const std::string& hexData);
 
 std::vector<size_t> findHexDataOffsets(const std::string& filePath, const std::string& hexData) {
@@ -72,13 +87,7 @@ std::vector<size_t> findHexDataOffsets(const std::string& filePath, const std::s
 }
 
 std::vector<size_t> findHexDataOffsetsF(FILE* const file, const std::string& hexData) {
-    // Convert the hex data string to binary data
-    std::vector<unsigned char> binaryData;
-    for (std::size_t i = 0; i < hexData.length(); i += 2) {
-        std::string byteString = hexData.substr(i, 2);
-        unsigned char byte = static_cast<unsigned char>(std::stoi(byteString, nullptr, 16));
-        binaryData.push_back(byte);
-    }
+    const std::vector<uint8_t> binaryData = hexStringToBytes(hexData);
 
     // Read the file in chunks to find the offsets where the hex data is located
     const std::size_t bufferSize = 1024;
