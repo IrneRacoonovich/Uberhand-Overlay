@@ -1009,65 +1009,69 @@ std::string getLinkOnLatest(json_t* json, int dEntry = 1) {
     return "Error";
 }
 
+enum PackageType {
+    Ovl,
+    OvlZip,
+    PackageZip
+};
 
-std::map<std::string, std::string> packageUpdateCheck(const std::string& subConfigIniPath) {
-    std::map<std::string, std::string> packageInfo;
+struct PackageInfo {
+    std::string name;
+    std::string localVersion;
+    std::string remoteVersion;
+    std::string link;
+    std::string filename;
+    int downloadEntry;
+    PackageType type;
+};
+
+PackageInfo packageUpdateCheck(const std::string& subConfigIniPath) {
+    PackageInfo packageInfo;
     PackageHeader packageHeader = getPackageHeaderFromIni(packageDirectory + subConfigIniPath);
     if (packageHeader.version != "" && packageHeader.github != "") {
-        packageInfo["localVer"] = packageHeader.version;
-        packageInfo["link"] = packageHeader.github;
-        packageInfo["name"] = subConfigIniPath.substr(0, subConfigIniPath.find("/config.ini"));
-        auto git_json = loadJsonFromUrl(packageInfo["link"]);
+        packageInfo.localVersion = packageHeader.version;
+        packageInfo.link = packageHeader.github;
+        packageInfo.name = subConfigIniPath.substr(0, subConfigIniPath.find("/config.ini"));
+        auto git_json = loadJsonFromUrl(packageInfo.link);
         if (!git_json) {
-            packageInfo.clear();
-            return packageInfo;
-        }   
-        packageInfo["repoVer"] = getVersion(git_json);
-        if (packageInfo["repoVer"] == "ApiLimit" || packageInfo["repoVer"] == "Error") {
-            packageInfo.clear();
-            return packageInfo;
+            return {};
         }
-        if (packageInfo["repoVer"][0] == 'v') {
-            packageInfo["repoVer"] = packageInfo["repoVer"].substr(1);
+        packageInfo.remoteVersion = getVersion(git_json);
+        if (packageInfo.remoteVersion == "ApiLimit" || packageInfo.remoteVersion == "Error") {
+            return {};
         }
-        //log("672: "+ getLinkOnLatest("/config/uberhand/downloads/temp.json"));
-        packageInfo["link"] = getLinkOnLatest(git_json);
-        //log("repoVer " + packageInfo["repoVer"]);
-        //log("localVer " + packageInfo["localVer"]);
-        packageInfo["type"] = "pkgzip";
+        if (packageInfo.remoteVersion[0] == 'v') {
+            packageInfo.remoteVersion = packageInfo.remoteVersion.substr(1);
+        }
+        packageInfo.link = getLinkOnLatest(git_json);
+        packageInfo.type = PackageZip;
     }
     return packageInfo;
 }
 
-std::map<std::string, std::string> ovlUpdateCheck(std::map<std::string, std::string> currentOverlay) {
-    std::map<std::string, std::string> ovlItemToUpdate;
-    auto git_json = loadJsonFromUrl(currentOverlay["link"]);
+PackageInfo ovlUpdateCheck(PackageInfo currentOverlay) {
+    PackageInfo ovlItemToUpdate;
+    auto git_json = loadJsonFromUrl(currentOverlay.link);
     if (!git_json) {
-        ovlItemToUpdate.clear();
-        return ovlItemToUpdate;
+        return {};
     }
-    ovlItemToUpdate["repoVer"] = getVersion(git_json);
-    if (ovlItemToUpdate["repoVer"] == "ApiLimit" || ovlItemToUpdate["repoVer"] == "Error") {
-        ovlItemToUpdate.clear();
-        return ovlItemToUpdate;
+    ovlItemToUpdate.remoteVersion = getVersion(git_json);
+    if (ovlItemToUpdate.remoteVersion == "ApiLimit" || ovlItemToUpdate.remoteVersion == "Error") {
+        return {};
     }
-    //log("repoVerovl: "+ovlItemToUpdate["repoVer"]);
-    if (ovlItemToUpdate["repoVer"][0] == 'v') {
-            ovlItemToUpdate["repoVer"] = ovlItemToUpdate["repoVer"].substr(1);
-        }
-    if (currentOverlay["localVer"] != ovlItemToUpdate["repoVer"]) {
-        ovlItemToUpdate["link"] = getLinkOnLatest(git_json, std::stoi(currentOverlay["downloadEntry"]));
-        ovlItemToUpdate["name"] = currentOverlay["name"];
-        if (getExtension(getFileNameFromURL(ovlItemToUpdate["link"])) == "zip") {
-            ovlItemToUpdate["type"] = "ovlzip";
+    if (ovlItemToUpdate.remoteVersion[0] == 'v') {
+        ovlItemToUpdate.remoteVersion = ovlItemToUpdate.remoteVersion.substr(1);
+    }
+    if (currentOverlay.localVersion != ovlItemToUpdate.remoteVersion) {
+        ovlItemToUpdate.link = getLinkOnLatest(git_json, currentOverlay.downloadEntry);
+        ovlItemToUpdate.name = currentOverlay.name;
+        if (getExtension(getFileNameFromURL(ovlItemToUpdate.link)) == "zip") {
+            ovlItemToUpdate.type = OvlZip;
         } else {
-            ovlItemToUpdate["type"] = "ovl";
+            ovlItemToUpdate.type = Ovl;
         }
-        ovlItemToUpdate["filename"] = currentOverlay["filename"];
-        // deleteFileOrDirectory("sdmc:/config/uberhand/downloads/temp.json");
+        ovlItemToUpdate.filename = currentOverlay.filename;
         return ovlItemToUpdate;
     }
-    // deleteFileOrDirectory("sdmc:/config/uberhand/downloads/temp.json");
-    ovlItemToUpdate.clear();
-    return ovlItemToUpdate;
+    return {};
 }

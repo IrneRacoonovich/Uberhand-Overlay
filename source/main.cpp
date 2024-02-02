@@ -1418,18 +1418,18 @@ public:
 
 class Updater : public tsl::Gui {
 protected:
-    std::vector<std::map<std::string, std::string>> uitems;
+    std::vector<PackageInfo> uitems;
     Screen prevMenu;
 
 public:
-    Updater(const std::vector<std::map<std::string, std::string>>& items, Screen mode = Overlays) : uitems(items), prevMenu(mode) {}
+    Updater(const std::vector<PackageInfo>& items, Screen mode = Overlays) : uitems(items), prevMenu(mode) {}
 
     tsl::elm::Element* createUI() override {
         auto rootFrame = new tsl::elm::OverlayFrame("Updates available", "Updater");
         auto list = new tsl::elm::List();
 
         for (const auto& item : uitems) {
-            auto* listItem = new tsl::elm::ListItem(item.at("name"), item.at("repoVer"));
+            auto* listItem = new tsl::elm::ListItem(item.name, item.remoteVersion);
             listItem->setClickListener([item, listItem](s64 key) {
                 if (key & KEY_A) {
                     if (!DownloadProcessing) {
@@ -1439,63 +1439,64 @@ public:
                     }
                 }
                 if (DownloadProcessing) {
-                    std::string type = item.at("type");
-                    std::string link = item.at("link");
-                    std::string name = item.at("name");
-                    std::string fullPath = item.at("filename");
-
-                    if (type == "ovl") {
-                        if (!moveFileOrDirectory(fullPath, fullPath + "_old")) {
+                    switch (item.type) {
+                    case Ovl: {
+                        std::string oldPath = item.filename + "_old";
+                        if (!moveFileOrDirectory(item.filename, oldPath)) {
                             listItem->setValue("FAIL", tsl::PredefinedColors::Red);
-                            log("Update: Error during rename of %s", fullPath.c_str());
+                            log("Update: Error during rename of %s", item.filename.c_str());
                             DownloadProcessing = false;
                             return false;
                         }
-                        if (downloadFile(link, "sdmc:/switch/.overlays/")) {
-                            listItem->setText(name);
+                        if (downloadFile(item.link, "sdmc:/switch/.overlays/")) {
+                            listItem->setText(item.name);
                             listItem->setValue("DONE", tsl::PredefinedColors::Green);
                             DownloadProcessing = false;
-                            deleteFileOrDirectory(fullPath + "_old");
+                            deleteFileOrDirectory(oldPath);
                             return true;
                         } else {
                             log("Update: Error during download");
-                            if (!moveFileOrDirectory(fullPath + "_old", fullPath)) {
+                            if (!moveFileOrDirectory(oldPath, item.filename)) {
                                 log("Update: Rollback failed");
                             }
                         }
-                    } else if (type == "pkgzip") {
+                    } break;
+                    case PackageZip: {
                         std::string tempZipPath = packageDirectory + "temp.zip";
+                        std::string oldPath = item.filename + "_old";
 
-                        if (!moveFileOrDirectory(fullPath, fullPath + "_old")) {
+                        if (!moveFileOrDirectory(item.filename, oldPath)) {
                             listItem->setValue("FAIL", tsl::PredefinedColors::Red);
-                            log("Update: Error during rename of %s", fullPath.c_str());
+                            log("Update: Error during rename of %s", item.filename.c_str());
                             DownloadProcessing = false;
                             return false;
                         }
-                        if (downloadFile(link, tempZipPath) && unzipFile(tempZipPath, packageDirectory)) {
+                        if (downloadFile(item.link, tempZipPath) && unzipFile(tempZipPath, packageDirectory)) {
                             deleteFileOrDirectory(tempZipPath);
-                            listItem->setText(name);
+                            listItem->setText(item.name);
                             listItem->setValue("DONE", tsl::PredefinedColors::Green);
-                            deleteFileOrDirectory(fullPath + "_old");
+                            deleteFileOrDirectory(oldPath);
                             DownloadProcessing = false;
                             return true;
                         } else {
                             log("Update: Error during download");
-                            if (!moveFileOrDirectory(fullPath + "_old", fullPath)) {
+                            if (!moveFileOrDirectory(oldPath, item.filename)) {
                                 log("Update: Rollback failed");
                             }
                         }
-                    } else if (type == "ovlzip") {
+                    } break;
+                    case OvlZip: {
                         std::string tempZipPath = packageDirectory + "temp.zip";
                         std::string destFolderPath = "sdmc:/";
 
-                        if (downloadFile(link, tempZipPath) && unzipFile(tempZipPath, destFolderPath)) {
+                        if (downloadFile(item.link, tempZipPath) && unzipFile(tempZipPath, destFolderPath)) {
                             deleteFileOrDirectory(tempZipPath);
-                            listItem->setText(name);
+                            listItem->setText(item.name);
                             listItem->setValue("DONE", tsl::PredefinedColors::Green);
                             DownloadProcessing = false;
                             return true;
                         }
+                    } break;
                     }
 
                     listItem->setValue("FAIL", tsl::PredefinedColors::Red);
@@ -1837,10 +1838,10 @@ public:
                         }
                         if (DownloadProcessing) {
                             bool NeedUpdate = false;
-                            std::vector<std::map<std::string, std::string>> items;
+                            std::vector<PackageInfo> items;
                             if (!uberhand_updates_only) {
                                 std::vector<std::string> overlays = getFilesListByWildcard("sdmc:/switch/.overlays/*.ovl");
-                                std::map<std::string, std::string> package;
+                                PackageInfo package;
                                 if (downloadFile(repoUrl, "sdmc:/config/uberhand/Updater.ini")) {
                                     auto options = loadOptionsFromIni("sdmc:/config/uberhand/Updater.ini");
                                     for (const std::string& overlay : overlays) {
@@ -1850,25 +1851,25 @@ public:
                                                 auto [result, overlayName, overlayVersion] = getOverlayInfo(overlay);
                                                 if (result != ResultSuccess)
                                                     continue;
-                                                package["name"] = overlayName;
-                                                package["filename"] = overlay;
+                                                package.name = overlayName;
+                                                package.filename = overlay;
                                                 if (parameters.size() > 1 && parameters[1].size() > 0 && parameters[1][0].starts_with("link=")) {
-                                                    package["link"] = parameters[1][0].substr(5); // skip "link="
+                                                    package.link = parameters[1][0].substr(5); // skip "link="
                                                 } else {
                                                     log("Overlay Updater:ERROR: link not found for item \"%s\"", overlayName.c_str());
                                                     break;
                                                 }
-                                                package["localVer"] = overlayVersion;
+                                                package.localVersion = overlayVersion;
                                                 if (parameters.size() > 0 && parameters[0].size() > 0 && parameters[0][0].starts_with("downloadEntry=")) {
-                                                    package["downloadEntry"] = parameters[0][0].substr(14); // skip "downloadEntry="
+                                                    package.downloadEntry = std::stoi(parameters[0][0].substr(14)); // skip "downloadEntry="
                                                 } else {
                                                     log("Overlay Updater:ERROR: downloadEntry not found for item \"%s\"", overlayName.c_str());
                                                     break;
                                                 }
-                                                std::map<std::string, std::string> resultUpdate = ovlUpdateCheck(package);
-                                                if (!resultUpdate.empty()) {
+                                                PackageInfo resultUpdate = ovlUpdateCheck(package);
+                                                if (!resultUpdate.name.empty()) {
                                                     NeedUpdate = true;
-                                                    items.insert(items.end(), resultUpdate);
+                                                    items.emplace_back(std::move(resultUpdate));
                                                 }
                                             }
                                         }
@@ -1880,15 +1881,15 @@ public:
                                 auto [result, overlayName, overlayVersion] = getOverlayInfo("sdmc:/switch/.overlays/ovlmenu.ovl");
                                 if (result != ResultSuccess)
                                     return false;
-                                std::map<std::string, std::string> ovlmenu;
-                                ovlmenu["name"] = overlayName;
-                                ovlmenu["localVer"] = overlayVersion;
-                                ovlmenu["link"] = "https://api.github.com/repos/efosamark/Uberhand-Overlay/releases?per_page=1";
-                                ovlmenu["downloadEntry"] = "1";
-                                std::map<std::string, std::string> resultUpdate = ovlUpdateCheck(ovlmenu);
-                                if (!resultUpdate.empty()) {
+                                PackageInfo ovlmenu;
+                                ovlmenu.name = overlayName;
+                                ovlmenu.localVersion = overlayVersion;
+                                ovlmenu.link = "https://api.github.com/repos/efosamark/Uberhand-Overlay/releases?per_page=1";
+                                ovlmenu.downloadEntry = 1;
+                                PackageInfo resultUpdate = ovlUpdateCheck(ovlmenu);
+                                if (!resultUpdate.name.empty()) {
                                     NeedUpdate = true;
-                                    items.insert(items.end(), resultUpdate);
+                                    items.emplace_back(std::move(resultUpdate));
                                 }
                             }
                             
@@ -2042,18 +2043,19 @@ public:
                             }
                             if (DownloadProcessing) {
                                 bool NeedUpdate = false;
-                                std::vector<std::map<std::string, std::string>> items;
+                                std::vector<PackageInfo> items;
                                 for (const auto& taintedSubdirectory : subdirectories) {
-                                    std::map<std::string, std::string> packageInfo = packageUpdateCheck(taintedSubdirectory + "/config.ini");
-                                    if (packageInfo["localVer"] != packageInfo["repoVer"]) {
+                                    PackageInfo packageInfo = packageUpdateCheck(taintedSubdirectory + "/config.ini");
+                                    if (packageInfo.localVersion != packageInfo.remoteVersion) {
                                         NeedUpdate = true;
-                                        packageInfo["filename"] = packageDirectory + taintedSubdirectory;
-                                        items.insert(items.end(), packageInfo);
+                                        packageInfo.filename = packageDirectory + taintedSubdirectory;
+                                        items.emplace_back(std::move(packageInfo));
                                     }
                                 }
                                 if (NeedUpdate){
                                     DownloadProcessing = false;
                                     tsl::changeTo<Updater>(items);
+                                    return true;
                                 }
                                 DownloadProcessing = false;
                                 updaterItem->setText("No updates");
