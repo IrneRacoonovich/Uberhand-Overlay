@@ -9,6 +9,7 @@
 #include <cctype> // For ::isspace
 #include <cstdio> // For FILE*, fopen(), fclose(), fprintf(), etc.
 #include <cstring> // For std::string, strlen(), etc.
+#include <filesystem>
 #include <fstream>
 #include <map> // For std::map
 #include <sstream> // For std::istringstream
@@ -211,6 +212,49 @@ bool isMarikoHWType()
     }
 }
 
+struct Command {
+    Command() = default;
+    Command(Command&& in)
+        : command(std::move(in.command))
+        , parameters(std::move(parameters))
+    {
+    }
+    // steals $input data
+    Command(std::vector<std::string>& input)
+    {
+        command = input[0]; // commandToEnum(input[0])
+        parameters.swap(input);
+        if (parameters.size() > 0) {
+            parameters.erase(parameters.begin());
+            parameters.shrink_to_fit();
+        }
+    }
+    Command(std::vector<std::string>&& input)
+    {
+        command = input[0]; // commandToEnum(input[0])
+        parameters.swap(input);
+        if (parameters.size() > 0) {
+            parameters.erase(parameters.begin());
+            parameters.shrink_to_fit();
+        }
+    }
+
+    std::string command; // should be tokenized into enum values
+    std::vector<std::string> parameters;
+};
+
+struct Option {
+    std::string name;
+    std::vector<Command> commands;
+
+    Option() = default;
+    Option(Option&& in)
+        : name(std::move(in.name))
+        , commands(std::move(in.commands))
+    {
+    }
+};
+
 std::vector<std::pair<std::string, std::vector<std::vector<std::string>>>> loadOptionsFromIni(const std::string& configIniPath, bool makeConfig = false)
 {
     std::vector<std::pair<std::string, std::vector<std::vector<std::string>>>> options;
@@ -325,6 +369,108 @@ std::vector<std::pair<std::string, std::vector<std::vector<std::string>>>> loadO
     }
 
     fclose(configFile);
+    return options;
+}
+
+std::vector<Option> __loadOptionsFromIni(const std::string& configIniPath, bool makeConfig = false)
+{
+    std::vector<Option> options;
+
+    if (!std::filesystem::exists(configIniPath)) {
+        std::ofstream configFileOut(configIniPath);
+        if (makeConfig) {
+            configFileOut << "[HOS Reboot]\n"
+                             "reboot\n"
+                             "[Shutdown]\n"
+                             "shutdown\n";
+        }
+        configFileOut.flush();
+    }
+
+    std::ifstream configFile(configIniPath);
+
+    Option currentOption;
+    static bool isMariko = isMarikoHWType();
+    bool skipCommand = false;
+    std::string line;
+
+    while (std::getline(configFile, line)) {
+        trimInPlace(line); // Remove trailing newline character
+
+        if (line.empty() || line[0] == '#') {
+            continue; // Skip empty lines and comment lines
+        } else if (line.starts_with("--")) { // Separator
+            if (!currentOption.name.empty()) {
+                // Store previous option and its commands
+                if (!skipCommand) {
+                    options.emplace_back(std::move(currentOption));
+                }
+                skipCommand = false;
+            }
+
+            auto name = line.substr(2);
+            auto start = name.find_first_not_of(' ');
+            size_t pos = name.find(" ; ");
+
+            if (pos != std::string::npos) {
+                if ((name.substr(pos + 3) == "Mariko" && !isMariko) || (name.substr(pos + 3) == "Erista" && isMariko)) {
+                    continue;
+                }
+                name = name.substr(0, pos);
+            }
+            currentOption.name = name.substr(start);
+            currentOption.commands.push_back(Command({ "separator" }));
+            options.push_back(std::move(currentOption));
+        } else if (line == "; Mariko") {
+            skipCommand = (!isMariko);
+            continue;
+        } else if (line == "; Erista") {
+            skipCommand = (isMariko);
+            continue;
+            if (line == "; Help") { }
+        } else if (line[0] == '[' && line.back() == ']') { // start of an option
+            // New option section
+            if (!currentOption.name.empty()) {
+                if (!skipCommand) {
+                    // Store previous option and its commands
+                    options.push_back(std::move(currentOption));
+                }
+                skipCommand = false;
+            }
+            currentOption.name = line.substr(1, line.size() - 2); // Extract option name
+        } else if (!currentOption.name.empty() && !skipCommand) { // regular command line
+            // Command line
+            std::istringstream iss(line);
+            std::vector<std::string> commandParts;
+            std::string part;
+            bool inQuotes = false;
+            while (std::getline(iss, part, '\'')) {
+                if (!part.empty()) {
+                    if (!inQuotes) {
+                        // Outside quotes, split on spaces
+                        std::istringstream argIss(part);
+                        std::string arg;
+                        while (argIss >> arg) {
+                            commandParts.push_back(arg);
+                        }
+                    } else {
+                        // Inside quotes, treat as a whole argument
+                        commandParts.push_back(part);
+                    }
+                }
+                inQuotes = !inQuotes;
+            }
+            currentOption.commands.push_back(Command(commandParts));
+        }
+    }
+
+    // Store the last option and its commands
+    if (!currentOption.name.empty()) {
+        if (!skipCommand) {
+            options.push_back(std::move(currentOption));
+        }
+    }
+
     return options;
 }
 
