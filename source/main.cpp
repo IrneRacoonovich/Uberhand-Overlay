@@ -2,6 +2,8 @@
 #define STBTT_STATIC
 #define TESLA_INIT_IMPL
 
+#include "profiler.hpp"
+
 #include <FanSliderOverlay.hpp>
 #include <KipInfoOverlay.hpp>
 #include <switch/kernel/thread.h>
@@ -1691,11 +1693,14 @@ public:
     MainMenu(const Screen& curScreen = Default)
         : ForMode(curScreen)
     {
+        PROFILE_ENTER
+        PROFILE_EXIT
     }
     ~MainMenu() { }
 
     virtual tsl::elm::Element* createUI() override
     {
+        PROFILE_ENTER
         // log ("MainMenu");
 
         defaultMenuMode = "overlays";
@@ -2221,6 +2226,7 @@ public:
 
         rootFrame->setContent(list);
 
+        PROFILE_EXIT
         return rootFrame;
     }
 
@@ -2311,6 +2317,8 @@ public:
         ASSERT_FATAL(nifmInitialize(NifmServiceType_User));
         ASSERT_FATAL(timeInitialize());
         ASSERT_FATAL(smInitialize());
+
+        PROFILER_OPEN_FILE
     }
 
     virtual void exitServices() override
@@ -2340,7 +2348,10 @@ public:
     }
 };
 
+PROFILER_INIT
+
 int main(int argc, char* argv[])
 {
-    return tsl::loop<Overlay, tsl::impl::LaunchFlags::None>(argc, argv);
+    auto result = tsl::loop<Overlay, tsl::impl::LaunchFlags::None>(argc, argv);
+    return result;
 }

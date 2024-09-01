@@ -55,7 +55,8 @@ CFLAGS := -Wall -Werror=format -Os -ffunction-sections -fdata-sections \
 			$(ARCH) $(DEFINES)
 
 CFLAGS += $(INCLUDE) -D__SWITCH__ -DAPP_VERSION="\"$(APP_VERSION)\""
-CFLAGS += -flto=auto 
+CFLAGS += -flto=auto
+CFLAGS += -DUSE_PROFILER
 
 CXXFLAGS := $(CFLAGS) -fexceptions -std=c++20 -Wno-dangling-else
 
