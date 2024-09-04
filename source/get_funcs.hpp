@@ -1,12 +1,13 @@
 #pragma once
 
 #include "debug_funcs.hpp"
+#include "ini_funcs.hpp"
 #include "json_funcs.hpp"
+#include "string_funcs.hpp"
 
 #include <dirent.h>
 #include <fnmatch.h>
 #include <jansson.h>
-#include <string_funcs.hpp>
 #include <sys/stat.h>
 
 #include <regex>
@@ -350,6 +351,13 @@ std::string replacePlaceholder(const std::string& input, const std::string& plac
     return result;
 }
 
+inline void replacePlaceholderInPlace(std::string& input, const std::string& placeholder, const std::string& replacement)
+{
+    if (auto pos = input.find(placeholder); pos != std::string::npos) {
+        input.replace(pos, placeholder.length(), replacement);
+    }
+}
+
 std::string replaceJsonSourcePlaceholder(const std::string& placeholder, const std::string& jsonPath, std::string searchString = "{json_data(")
 {
     // Load JSON data from the provided file
@@ -418,86 +426,50 @@ std::string replaceJsonSourcePlaceholder(const std::string& placeholder, const s
     return replacement;
 }
 
-std::vector<std::vector<std::string>> getModifyCommands(const std::vector<std::vector<std::string>>& commands, const std::string& file, bool toggle = false, bool on = true, bool usingJsonSource = false)
+std::vector<Command> getModifyCommands(const std::vector<Command>& commands, const std::string& file, bool toggle = false, bool on = true, bool usingJsonSource = false)
 {
-    std::vector<std::vector<std::string>> modifiedCommands;
+    std::vector<Command> modifiedCommands;
     std::string jsonPath, replacement;
 
     bool addCommands = false;
     for (const auto& cmd : commands) {
-        if (cmd.size() > 1) {
-            if (toggle) {
-                if (cmd[0] == "source_on") {
-                    addCommands = true;
-                    if (!on) {
-                        addCommands = !addCommands;
-                    }
-                } else if (cmd[0] == "source_off") {
-                    addCommands = false;
-                    if (!on) {
-                        addCommands = !addCommands;
-                    }
+        if (toggle) {
+            if (cmd.command == "source_on") {
+                addCommands = true;
+                if (!on) {
+                    addCommands = !addCommands;
+                }
+            } else if (cmd.command == "source_off") {
+                addCommands = false;
+                if (!on) {
+                    addCommands = !addCommands;
                 }
             }
-            if ((usingJsonSource) && (cmd[0] == "json_source" || cmd[0] == "json_mark_cur_kip" || cmd[0] == "json_mark_cur_ini")) {
-                jsonPath = preprocessPath(cmd[1]);
-            }
+        }
+        if ((usingJsonSource) && (cmd.command == "json_source" || cmd.command == "json_mark_cur_kip" || cmd.command == "json_mark_cur_ini") && cmd.parameters.size() > 0) {
+            jsonPath = preprocessPath(cmd.parameters[0]);
         }
         if (!toggle or addCommands) {
-            std::vector<std::string> modifiedCmd = cmd;
-            for (auto& arg : modifiedCmd) {
-                if (!toggle && (arg.find("{source}") != std::string::npos)) {
-                    arg = replacePlaceholder(arg, "{source}", file);
-                } else if (on && (arg.find("{source_on}") != std::string::npos)) {
-                    arg = replacePlaceholder(arg, "{source_on}", file);
-                } else if (!on && (arg.find("{source_off}") != std::string::npos)) {
-                    arg = replacePlaceholder(arg, "{source_off}", file);
-                } else if (arg.find("{name}") != std::string::npos) {
-                    arg = replacePlaceholder(arg, "{name}", getNameFromPath(file));
-                } else if (arg.find("{parent_name}") != std::string::npos) {
-                    arg = replacePlaceholder(arg, "{parent_name}", getParentDirNameFromPath(file));
-                    //} else if (arg.find("{json_source(") != std::string::npos) {
-                    //    size_t startPos = arg.find("{json_source(");
-                    //    size_t endPos = arg.find(")}");
-                    //    if (endPos != std::string::npos && endPos > startPos) {
-                    //        std::string placeholder = "*";
-                    //        std::string replacement = arg.substr(startPos, endPos - startPos + 2);
-                    //        size_t placeholderPos = replacement.find(placeholder);
-                    //        if (placeholderPos != std::string::npos) {
-                    //            replacement.replace(placeholderPos, placeholder.length(), file);
-                    //            //arg.replace(startPos, endPos - startPos + 2, replacement);
-                    //        }
-                    //
-                    //        replacement = replaceJsonSourcePlaceholder(replacement, jsonPath, true);
-                    //        //log2("replacement: "+replacement);
-                    //        //log2("pre-arg: "+arg);
-                    //        arg.replace(startPos, endPos - startPos + 2, replacement);
-                    //    }
+            Command modifiedCmd = cmd;
+            for (auto& arg : modifiedCmd.parameters) {
+                if (!toggle) {
+                    replacePlaceholderInPlace(arg, "{source}", file);
+                } else if (on) {
+                    replacePlaceholderInPlace(arg, "{source_on}", file);
+                } else if (!on) {
+                    replacePlaceholderInPlace(arg, "{source_off}", file);
                 } else if (usingJsonSource && (arg.find("{json_source(") != std::string::npos)) {
                     std::string countStr = file;
-
-                    // log(std::string("count: ")+countStr);
-                    // log(std::string("pre arg: ") + arg);
-                    arg = replacePlaceholder(arg, "*", file);
-                    // log(std::string("post arg: ") + arg);
-
+                    replacePlaceholderInPlace(arg, "*", file);
                     size_t startPos = arg.find("{json_source(");
                     size_t endPos = arg.find(")}");
                     if (endPos != std::string::npos && endPos > startPos) {
                         replacement = replaceJsonSourcePlaceholder(arg.substr(startPos, endPos - startPos + 2), jsonPath, "{json_source(");
-                        //log2("replacement: "+replacement);
-                        //log2("pre-arg: "+arg);
                         arg.replace(startPos, endPos - startPos + 2, replacement);
-                        //log2("post-arg: "+arg);
                     }
                 } else if (usingJsonSource && (arg.find("{json_mark_cur_kip(") != std::string::npos)) {
                     std::string countStr = file;
-
-                    // log(std::string("count: ")+countStr);
-                    // log(std::string("pre arg: ") + arg);
-                    arg = replacePlaceholder(arg, "*", file);
-                    // log(std::string("post arg: ") + arg);
-
+                    replacePlaceholderInPlace(arg, "*", file);
                     size_t startPos = arg.find("{json_mark_cur_kip(");
                     size_t endPos = arg.find(")}");
                     if (endPos != std::string::npos && endPos > startPos) {
@@ -506,21 +478,16 @@ std::vector<std::vector<std::string>> getModifyCommands(const std::vector<std::v
                     }
                 } else if (usingJsonSource && (arg.find("{json_mark_cur_ini(") != std::string::npos)) {
                     std::string countStr = file;
-
-                    // log(std::string("count: ")+countStr);
-                    // log(std::string("pre arg: ") + arg);
-                    arg = replacePlaceholder(arg, "*", file);
-                    // log(std::string("post arg: ") + arg);
-
+                    replacePlaceholderInPlace(arg, "*", file);
                     size_t startPos = arg.find("{json_mark_cur_ini(");
                     size_t endPos = arg.find(")}");
                     if (endPos != std::string::npos && endPos > startPos) {
                         replacement = replaceJsonSourcePlaceholder(arg.substr(startPos, endPos - startPos + 2), jsonPath, "{json_mark_cur_ini(");
-                        //log2("replacement: "+replacement);
-                        //log2("pre-arg: "+arg);
                         arg.replace(startPos, endPos - startPos + 2, replacement);
-                        //log2("post-arg: "+arg);
                     }
+                } else {
+                    replacePlaceholderInPlace(arg, "{name}", getNameFromPath(file));
+                    replacePlaceholderInPlace(arg, "{parent_name}", getParentDirNameFromPath(file));
                 }
             }
             modifiedCommands.emplace_back(modifiedCmd);

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "string_funcs.hpp"
+
 #include <fstream>
 #include <map>
 #include <unordered_map>

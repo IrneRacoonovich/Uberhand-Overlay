@@ -792,22 +792,34 @@ public:
     FILE* kipFile = nullptr;
     int custOffset;
 
-    auto addSliderItem(auto& sliderOption)
+    /// @brief creates a NamedStepTrackBar element
+    /// @param name[1]
+    /// @param low[2]
+    /// @param high[3]
+    /// @param step[4]
+    /// @param offset[5]
+    /// @param has_zero[6]
+    /// @param prompt[7]
+    /// @return pointer to the allocated NamedStepTrackBar element
+    tsl::elm::NamedStepTrackBar* addSliderItem(Command& sliderOption)
     {
+        if (sliderOption.command != "slider_kip") {
+            log("ERROR: %s(command: %s): the command passed is not slider_kip", __func__, sliderOption.command.c_str());
+        }
         bool has_zero = false;
-        std::string slider_prompt = ""; // temp insert
-        const std::string& sliderName = sliderOption[1];
-        const int low = std::stoi(sliderOption[2]);
-        const int high = std::stoi(sliderOption[3]);
-        const int step = std::stoi(sliderOption[4]);
-        const std::string& offset = sliderOption[5];
-        if (sliderOption.size() > 6 && sliderOption[6] == "has_zero") {
+        std::string slider_prompt;
+        const std::string sliderName = sliderOption.parameters[0];
+        const int low = std::stoi(sliderOption.parameters[1]);
+        const int high = std::stoi(sliderOption.parameters[2]);
+        const int step = std::stoi(sliderOption.parameters[3]);
+        const std::string offset = sliderOption.parameters[4];
+        if (sliderOption.parameters.size() > 5 && sliderOption.parameters[5] == "has_zero") {
             has_zero = true;
-            if (sliderOption.size() > 7) {
-                slider_prompt = sliderOption[7];
+            if (sliderOption.parameters.size() > 6) {
+                slider_prompt = sliderOption.parameters[6];
             }
-        } else if (sliderOption.size() > 6) {
-            slider_prompt = sliderOption[6];
+        } else if (sliderOption.parameters.size() > 5) {
+            slider_prompt = sliderOption.parameters[5];
         }
         std::vector<std::string> myArray;
         const std::string CUST = "43555354";
@@ -981,14 +993,13 @@ public:
 
         // Load options from INI file in the subdirectory
         std::string subConfigIniPath = subPath + "/" + configFileName;
-        std::vector<std::pair<std::string, std::vector<std::vector<std::string>>>> options = loadOptionsFromIni(subConfigIniPath);
+        auto options = loadOptionsFromIni(subConfigIniPath);
 
         // Package Info
         PackageHeader packageHeader = getPackageHeaderFromIni(subConfigIniPath);
 
         // Populate the sub menu with options
-        for (const auto& option : options) {
-            std::string optionName = option.first;
+        for (auto& option : options) {
             std::string footer;
             bool usePattern = false;
             bool useSlider = false;
@@ -997,13 +1008,13 @@ public:
             std::string toggleVerPath;
             std::string toggleVerLine;
             std::string headerName;
-            if (optionName[0] == '@') { // a subdirectory. add a menu item and skip to the next command
-                std::vector<std::string> tmpldir = option.second[0];
-                auto item = new tsl::elm::ListItem(optionName.substr(1));
+            if (option.name[0] == '@') { // a subdirectory. add a menu item and skip to the next command
+                // Command tmpldir = std::move(option.commands[0]);
+                auto item = new tsl::elm::ListItem(option.name.substr(1));
                 item->setValue("\u25B6", tsl::PredefinedColors::White);
-                item->setClickListener([&, tmpldir, item](u64 keys) -> bool {
+                item->setClickListener([item, tmpldir = std::move(option.commands[0])](u64 keys) -> bool {
                     if (keys & KEY_A) {
-                        if (!isFileOrDirectory(tmpldir[1])) {
+                        if (!isFileOrDirectory(tmpldir.parameters[0])) {
                             item->setValue("FAIL", tsl::PredefinedColors::Red);
                             return true;
                         }
@@ -1015,8 +1026,8 @@ public:
                 list->addItem(item);
                 continue;
             }
-            if (enableConfigNav && optionName[0] == '>') { // a subdirectory. add a menu item and skip to the next command
-                auto subDirectory = optionName.substr(1);
+            if (enableConfigNav && option.name[0] == '>') { // a subdirectory. add a menu item and skip to the next command
+                auto subDirectory = option.name.substr(1);
                 auto item = new tsl::elm::ListItem(subDirectory);
                 item->setValue("\u25B6", tsl::PredefinedColors::White);
                 item->setClickListener([&, subDirectory, item, helpPath](u64 keys) -> bool {
@@ -1035,69 +1046,69 @@ public:
                 });
                 list->addItem(item);
                 continue;
-            } else if (optionName[0] == '*') {
-                if (option.second[0][0] == "slider_kip") {
+            } else if (option.name[0] == '*') {
+                if (option.commands[0].command == "slider_kip") {
                     useSliderItem = true;
                     footer = "";
                 } else {
                     usePattern = true;
                     footer = "\u25B6";
                 }
-                optionName = optionName.substr(1); // Strip the "-" character on the left
-            } else if (optionName[0] == '-') {
+                option.name = option.name.substr(1); // Strip the "-" character on the left
+            } else if (option.name[0] == '-') {
                 useSlider = true;
-                optionName = optionName.substr(1); // Strip the "-" character on the left
+                option.name = option.name.substr(1); // Strip the "-" character on the left
                 footer = "\u25B6";
             } else {
-                size_t pos = optionName.find(" - ");
+                size_t pos = option.name.find(" - ");
                 if (pos != std::string::npos) {
-                    footer = optionName.substr(pos + 2); // Assign the part after "&&" as the footer
-                    optionName.resize(pos); // Strip the "&&" and everything after it
+                    footer = option.name.substr(pos + 2); // Assign the part after "&&" as the footer
+                    option.name.resize(pos); // Strip the "&&" and everything after it
                 }
             }
 
-            size_t pos = optionName.find(" ;; "); // Find the custom display header
+            size_t pos = option.name.find(" ;; "); // Find the custom display header
             if (pos != std::string::npos) {
-                headerName = optionName.substr(pos + 4); // Strip the item name
-                optionName.resize(pos); // Strip the displayName
+                headerName = option.name.substr(pos + 4); // Strip the item name
+                option.name.resize(pos); // Strip the displayName
             } else {
-                headerName = optionName;
+                headerName = option.name;
             }
 
             // Extract the path pattern from commands
             bool useToggle = false;
             bool useAdvToggle = false;
             bool isSeparator = false;
-            for (const auto& cmd : option.second) {
-                if (cmd[0] == "separator") {
+            for (const auto& cmd : option.commands) {
+                if (cmd.command == "separator") {
                     isSeparator = true;
                     break;
                 }
-                if (cmd.size() > 1) {
-                    if (cmd[0] == "source") {
-                        pathReplace = cmd[1];
-                    } else if (cmd[0] == "source_on") {
-                        pathReplaceOn = cmd[1];
-                        useToggle = true;
-                    } else if (cmd[0] == "source_off") {
-                        pathReplaceOff = cmd[1];
-                        useToggle = true;
-                    } else if (cmd[0] == "toggle_state") {
-                        toggleMode = cmd[1];
-                        toggleVerPath = cmd[2];
-                        if (cmd.size() > 3) {
-                            toggleVerLine = cmd[3];
-                        }
-                        useAdvToggle = true;
+                if (cmd.command == "source" && cmd.parameters.size() > 0) {
+                    pathReplace = cmd.parameters[0];
+                } else if (cmd.command == "source_on" && cmd.parameters.size() > 0) {
+                    pathReplaceOn = cmd.parameters[0];
+                    useToggle = true;
+                } else if (cmd.command == "source_off" && cmd.parameters.size() > 0) {
+                    pathReplaceOff = cmd.parameters[0];
+                    useToggle = true;
+                } else if (cmd.command == "toggle_state" && cmd.parameters.size() > 0) {
+                    toggleMode = cmd.parameters[0];
+                    if (cmd.parameters.size() > 1) {
+                        toggleVerPath = cmd.parameters[1];
                     }
+                    if (cmd.parameters.size() > 2) {
+                        toggleVerLine = cmd.parameters[2];
+                    }
+                    useAdvToggle = true;
                 }
             }
 
             if (isSeparator) {
-                auto item = new tsl::elm::CategoryHeader(optionName, true);
+                auto item = new tsl::elm::CategoryHeader(option.name, true);
                 list->addItem(item);
             } else if (useSliderItem) {
-                auto item = addSliderItem(option.second[0]);
+                auto item = addSliderItem(option.commands[0]);
                 list->addItem(item);
             } else if (useAdvToggle) {
                 bool toggleStateOn = false;
@@ -1106,24 +1117,24 @@ public:
                 } else if (toggleMode == "has_line") {
                     toggleStateOn = isLineExistInIni(toggleVerPath, toggleVerLine);
                 }
-                auto toggleListItem = new tsl::elm::ToggleListItem(optionName, toggleStateOn, "On", "Off");
-                std::vector<std::vector<std::string>> toggleOn;
-                std::vector<std::vector<std::string>> toggleOff;
+                auto toggleListItem = new tsl::elm::ToggleListItem(option.name, toggleStateOn, "On", "Off");
+                std::vector<Command> toggleOn;
+                std::vector<Command> toggleOff;
 
-                for (auto command : option.second) {
-                    if (command[0] == "toggle_on") {
-                        toggleOn.push_back(std::vector<std::string>(command.begin() + 1, command.end()));
-                    } else if (command[0] == "toggle_off") {
-                        toggleOff.push_back(std::vector<std::string>(command.begin() + 1, command.end()));
+                for (auto command : option.commands) {
+                    if (command.command == "toggle_on") {
+                        toggleOn.emplace_back(command.parameters);
+                    } else if (command.command == "toggle_off") {
+                        toggleOff.emplace_back(command.parameters);
                     }
                 }
 
                 toggleListItem->setStateChangedListener([toggleListItem, toggleOn, toggleOff, toggleStateOn, this](bool state) {
                     if (state) {
-                        std::vector<std::vector<std::string>> modifiedCommands = getModifyCommands(toggleOn, "", false, true, true);
+                        std::vector<Command> modifiedCommands = getModifyCommands(toggleOn, "", false, true, true);
                         interpretAndExecuteCommand(modifiedCommands);
                     } else {
-                        std::vector<std::vector<std::string>> modifiedCommands = getModifyCommands(toggleOff, "", false, true, true);
+                        std::vector<Command> modifiedCommands = getModifyCommands(toggleOff, "", false, true, true);
                         interpretAndExecuteCommand(modifiedCommands);
                     }
                 });
@@ -1131,9 +1142,9 @@ public:
             } else if (usePattern || !useToggle || useSlider) {
                 auto listItem = static_cast<tsl::elm::ListItem*>(nullptr);
                 if ((footer == "\u25B6") || (footer.empty())) {
-                    listItem = new tsl::elm::ListItem(optionName, footer);
+                    listItem = new tsl::elm::ListItem(option.name, footer);
                 } else {
-                    listItem = new tsl::elm::ListItem(optionName);
+                    listItem = new tsl::elm::ListItem(option.name);
                     listItem->setValue(footer);
                 }
                 for (const auto& cmd : option.second) {
@@ -1210,7 +1221,7 @@ public:
 
                 list->addItem(listItem);
             } else {
-                auto toggleListItem = new tsl::elm::ToggleListItem(optionName, false, "On", "Off");
+                auto toggleListItem = new tsl::elm::ToggleListItem(option.name, false, "On", "Off");
                 // Set the initial state of the toggle item
                 bool toggleStateOn = isFileOrDirectory(preprocessPath(pathReplaceOn));
 

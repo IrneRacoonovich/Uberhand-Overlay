@@ -2,19 +2,20 @@
 
 #include "IniSection.hpp"
 #include "debug_funcs.hpp"
+#include "get_funcs.hpp"
 
 #include <sys/stat.h>
 
-#include <algorithm> // For std::remove_if
-#include <cctype> // For ::isspace
-#include <cstdio> // For FILE*, fopen(), fclose(), fprintf(), etc.
-#include <cstring> // For std::string, strlen(), etc.
+#include <algorithm>
+#include <cctype>
+#include <cstdio>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
-#include <map> // For std::map
-#include <sstream> // For std::istringstream
-#include <string> // For std::string
-#include <vector> // For std::vector
+#include <map>
+#include <sstream>
+#include <string>
+#include <vector>
 
 // Ini Functions
 
@@ -214,24 +215,20 @@ bool isMarikoHWType()
 
 struct Command {
     Command() = default;
+    Command(const Command& in)
+        : command(in.command)
+        , parameters(in.parameters)
+    {
+    }
     Command(Command&& in)
         : command(std::move(in.command))
-        , parameters(std::move(parameters))
+        , parameters(std::move(in.parameters))
     {
     }
     // steals $input data
-    Command(std::vector<std::string>& input)
-    {
-        command = input[0]; // commandToEnum(input[0])
-        parameters.swap(input);
-        if (parameters.size() > 0) {
-            parameters.erase(parameters.begin());
-            parameters.shrink_to_fit();
-        }
-    }
     Command(std::vector<std::string>&& input)
     {
-        command = input[0]; // commandToEnum(input[0])
+        command = std::move(input[0]);
         parameters.swap(input);
         if (parameters.size() > 0) {
             parameters.erase(parameters.begin());
@@ -239,7 +236,7 @@ struct Command {
         }
     }
 
-    std::string command; // should be tokenized into enum values
+    std::string command; //? should be tokenized into enum values
     std::vector<std::string> parameters;
 };
 
@@ -255,7 +252,7 @@ struct Option {
     }
 };
 
-std::vector<std::pair<std::string, std::vector<std::vector<std::string>>>> loadOptionsFromIni(const std::string& configIniPath, bool makeConfig = false)
+std::vector<std::pair<std::string, std::vector<std::vector<std::string>>>> __loadOptionsFromIni(const std::string& configIniPath, bool makeConfig = false)
 {
     std::vector<std::pair<std::string, std::vector<std::vector<std::string>>>> options;
 
@@ -372,7 +369,7 @@ std::vector<std::pair<std::string, std::vector<std::vector<std::string>>>> loadO
     return options;
 }
 
-std::vector<Option> __loadOptionsFromIni(const std::string& configIniPath, bool makeConfig = false)
+std::vector<Option> loadOptionsFromIni(const std::string& configIniPath, bool makeConfig = false)
 {
     std::vector<Option> options;
 
@@ -460,7 +457,7 @@ std::vector<Option> __loadOptionsFromIni(const std::string& configIniPath, bool 
                 }
                 inQuotes = !inQuotes;
             }
-            currentOption.commands.push_back(Command(commandParts));
+            currentOption.commands.push_back(Command(std::move(commandParts)));
         }
     }
 

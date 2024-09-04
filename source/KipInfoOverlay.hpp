@@ -11,12 +11,7 @@ private:
     tsl::elm::List* p_list;
 
 public:
-    KipInfoOverlay(const std::vector<std::string>& kipInfoCommand)
-        : kipInfoCommand(kipInfoCommand)
-        , showBackup(true)
-    {
-    }
-    KipInfoOverlay(const std::vector<std::string>& kipInfoCommand, bool showBackup, bool isFirstPage = true)
+    KipInfoOverlay(const std::vector<std::string>& kipInfoCommand, bool showBackup = true, bool isFirstPage = true)
         : kipInfoCommand(kipInfoCommand)
         , showBackup(showBackup)
         , isFirstPage(isFirstPage)
