@@ -1,5 +1,7 @@
 #pragma once
 
+#include "debug_funcs.hpp"
+
 #include <fstream>
 #include <iostream>
 #include <string>

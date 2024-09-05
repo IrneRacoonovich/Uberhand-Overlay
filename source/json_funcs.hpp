@@ -1,11 +1,7 @@
 #pragma once
 
-#include "debug_funcs.hpp"
-
 #include <jansson.h>
-#include <sys/stat.h>
 
-#include <cstdio>
 #include <string>
 
 class SafeJson {
@@ -38,94 +34,4 @@ private:
     json_t* _json { nullptr };
 };
 
-SafeJson readJsonFromFile(const std::string& filePath)
-{
-    // Check if the file exists
-    struct stat fileStat;
-    if (stat(filePath.c_str(), &fileStat) != 0) {
-        log("ERROR: readJsonFromFile: failed to get stat for file \"%s\"", filePath.c_str());
-        return nullptr;
-    }
-
-    // Open the file
-    FILE* file = fopen(filePath.c_str(), "r");
-    if (!file) {
-        log("ERROR: readJsonFromFile: failed to open file \"%s\"", filePath.c_str());
-        return nullptr;
-    }
-
-    json_error_t error;
-    json_t* root = json_loadf(file, JSON_DECODE_ANY, &error);
-    if (!root) {
-        fclose(file);
-        log("ERROR: readJsonFromFile: failed to load file as json \"%s\"", filePath.c_str());
-        return nullptr;
-    }
-
-    // Clean up
-    fclose(file);
-
-    return root;
-}
-
-// int editJSONfile (const char* jsonFilePath, const std::string& offsetStr) {
-//     // log("Entered editJSONfile");
-
-//     // Step 0: Read the contents of loader.kip to determine the hex value
-//     std::string selectedHex = readHexDataAtOffset("/atmosphere/kips/loader.kip", "43555354", offsetStr);
-//     log("selectedHex: ");
-//     log(selectedHex);
-//     selectedHex = "600027";
-
-//     // Step 1: Read the JSON file into a Jansson JSON object
-//     json_t *root;
-//     json_error_t error;
-
-//     FILE* jsonFile = fopen(jsonFilePath, "r");
-//     if (!jsonFile) {
-//         log("Failed to open JSON file.");
-//         return 1;
-//     }
-
-//     root = json_loadf(jsonFile, 0, &error);
-//     fclose(jsonFile);
-
-//     if (!root) {
-//         log("Error parsing JSON:");
-//         log(error.text);
-//         return 1;
-//     }
-
-//     // Step 2: Iterate through the JSON array and find the object with the desired hex value
-//     if (json_is_array(root)) {
-//         size_t arraySize = json_array_size(root);
-//         for (size_t i = 0; i < arraySize; ++i) {
-//             json_t *arrayItem = json_array_get(root, i);
-//             json_t *hexValue = json_object_get(arrayItem, "hex");
-//             if (json_is_string(hexValue) && strcmp(json_string_value(hexValue), selectedHex.c_str()) == 0) {
-//                 json_t *nameValue = json_object_get(arrayItem, "name");
-//                 std::string selName = json_string_value(nameValue);
-//                 selName += "- current";
-
-//                 json_object_set_new(arrayItem, "name", json_string(selName.c_str()));
-//                 break; // Exit the loop once the object is found and updated
-//             }
-//         }
-//     } else {
-//         // log("JSON file does not contain an array at the root level.");
-//         json_decref(root);
-//         return 1;
-//     }
-//     int dotPosition = std::string(jsonFilePath).rfind('.');
-//     const std::string selJsonFile = std::string(jsonFilePath).substr(0, dotPosition) + "-sel.json";
-//     log(selJsonFile);
-
-//     // Step 3: Write the updated JSON object back to the file
-//     log(std::to_string(json_dump_file(root, selJsonFile.c_str(), JSON_INDENT(4))));
-
-//     // Cleanup
-//     json_decref(root);
-
-//     // log("JSON file updated successfully.");
-//     return 0;
-// }
+SafeJson readJsonFromFile(const std::string& filePath);

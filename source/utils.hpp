@@ -1,6 +1,7 @@
 #pragma once
 
 #include "IniSection.hpp"
+#include "debug_funcs.hpp"
 
 #include <dirent.h>
 #include <download_funcs.hpp>
