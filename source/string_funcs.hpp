@@ -1,5 +1,7 @@
 #pragma once
 
+#include <sys/stat.h>
+
 #include <string>
 
 constexpr const char* WhitespaceCharacters = " \t\n\r\f\v";

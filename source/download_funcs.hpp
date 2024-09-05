@@ -1,5 +1,6 @@
 #pragma once
 
+#include "json_funcs.hpp"
 #include "tesla.hpp"
 
 #include <string>

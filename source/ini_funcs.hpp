@@ -11,6 +11,7 @@
 #include <cstring> // For std::string, strlen(), etc.
 #include <fstream>
 #include <map> // For std::map
+#include <regex>
 #include <sstream> // For std::istringstream
 #include <string> // For std::string
 #include <vector> // For std::vector
