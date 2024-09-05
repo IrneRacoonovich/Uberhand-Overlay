@@ -4,17 +4,6 @@
 
 #include <string>
 
-// Trim leading and trailing whitespaces from a string
-std::string trim(const std::string& str)
-{
-    size_t first = str.find_first_not_of(WhitespaceCharacters);
-    size_t last = str.find_last_not_of(WhitespaceCharacters);
-    if (first == std::string::npos || last == std::string::npos) {
-        return "";
-    }
-    return str.substr(first, last - first + 1);
-}
-
 std::string trim(std::string&& str)
 {
     const size_t first = str.find_first_not_of(WhitespaceCharacters);

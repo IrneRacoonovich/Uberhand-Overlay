@@ -94,8 +94,8 @@ std::string getValueFromLine(const std::string& line)
 {
     std::size_t equalsPos = line.find('=');
     if (equalsPos != std::string::npos) {
-        std::string value = line.substr(equalsPos + 1);
-        return trim(value);
+        std::string value = trim(line.substr(equalsPos + 1));
+        return value;
     }
     return "";
 }
@@ -373,7 +373,7 @@ std::string replaceJsonSourcePlaceholder(const std::string& placeholder, const s
         std::string key;
         std::istringstream keyStream(jsonPathArgs);
         while (std::getline(keyStream, key, ',')) {
-            keys.push_back(trim(key));
+            keys.push_back(trim(std::move(key)));
         }
 
         // Traverse the JSON structure based on the keys

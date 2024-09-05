@@ -356,39 +356,6 @@ void cleanIniFormatting(const std::string& filePath)
     rename(tempPath.c_str(), filePath.c_str());
 }
 
-/*
-1. Get a data vector: data<section<keys<values>>>
-Open file
-2. For each data section in data vector:
-  2.1. For each key
-    2.1.1. For each value - write it to file
-
-
-
-Close file
-*/
-
-// void setIniFileMulti(const std::string& fileToEdit, const IniSectionInput desiredData) {
-//     IniSectionInput iniData;
-//     if (!loadConfig(fileToEdit, iniData)) {
-//         return; // Exit if file loading failed
-//     }
-
-//     std::ofstream file(fileToEdit);
-//     if (!file.is_open()) {
-//         // std::cerr << "Unable to open file: " << fileToEdit << " for writing\n";
-//         return;
-//     }
-
-//     for (const auto& [section, keys] : desiredData) {
-//         file << "[" << section << "]\n";
-//         for (const auto& [key, value] : keys) {
-//             file << key << "=" << value << "\n";
-//         }
-//         file << "\n";
-//     }
-// }
-
 bool setIniFile(const std::string& fileToEdit, const std::string& desiredSection, const std::string& desiredKey, const std::string& desiredValue, const std::string& desiredNewKey)
 {
     FILE* configFile = fopen(fileToEdit.c_str(), "r");
@@ -424,7 +391,7 @@ bool setIniFile(const std::string& fileToEdit, const std::string& desiredSection
 
             // Check if the line represents a section
             if (trimmedLine[0] == '[' && trimmedLine[trimmedLine.length() - 1] == ']') {
-                currentSection = removeQuotes(trim(std::string(trimmedLine.c_str() + 1, trimmedLine.length() - 2)));
+                currentSection = trim(removeQuotes(trim(std::string(trimmedLine.c_str() + 1, trimmedLine.length() - 2))));
 
                 if (sectionFound && !keyFound && (desiredNewKey.empty())) {
                     // Write the modified line with the desired key and value
@@ -435,14 +402,14 @@ bool setIniFile(const std::string& fileToEdit, const std::string& desiredSection
             }
 
             if (sectionFound && !keyFound && desiredNewKey.empty()) {
-                if (trim(currentSection) != trim(desiredSection)) {
+                if (currentSection != desiredSection) {
                     fprintf(tempFile, "%s=%s\n", desiredKey.c_str(), formattedDesiredValue.c_str());
                     keyFound = true;
                 }
             }
 
             // Check if the line is in the desired section
-            if (trim(currentSection) == trim(desiredSection)) {
+            if (currentSection == desiredSection) {
                 sectionFound = true;
                 // Tokenize the line based on "=" delimiter
                 std::string::size_type delimiterPos = trimmedLine.find('=');

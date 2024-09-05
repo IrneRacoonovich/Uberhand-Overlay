@@ -24,10 +24,8 @@ IniSectionInput readIniFile(const std::string& filename)
         else if (!currentSection.empty()) {
             size_t eqPos = line.find('=');
             if (eqPos != std::string::npos) {
-                std::string key = line.substr(0, eqPos);
-                key = trim(key);
-                std::string value = line.substr(eqPos + 1);
-                value = trim(value);
+                std::string key = trim(line.substr(0, eqPos));
+                std::string value = trim(line.substr(eqPos + 1));
                 iniData[currentSection][key] = value;
             }
         }
@@ -100,7 +98,7 @@ IniSectionInput parseDesiredData(const std::string& input)
 
         // Extract section
         std::getline(iss, section, ',');
-        section = section.substr(1, section.find(' ') - 1); // Removing '{' and optional space
+        section = trim(section.substr(1, section.find(' ') - 1)); // Removing '{' and optional space
 
         desiredData[section] = {};
 
@@ -111,7 +109,7 @@ IniSectionInput parseDesiredData(const std::string& input)
             // Cleaning up key and value strings
             key = trim(key.substr(key.find_first_not_of(" {"))); // Removing leading whitespace and '{'
 
-            desiredData[trim(section)][key] = trim(value);
+            desiredData[section][key] = trim(std::move(value));
             iss.ignore(3); // Skipping "}, {" sequence
         }
     }

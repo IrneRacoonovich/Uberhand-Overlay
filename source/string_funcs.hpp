@@ -4,9 +4,6 @@
 
 constexpr const char* WhitespaceCharacters = " \t\n\r\f\v";
 
-// Trim leading and trailing whitespaces from a string
-std::string trim(const std::string& str);
-
 // In-place trimming of whitespace characters for rvalue strings
 std::string trim(std::string&& str);
 
