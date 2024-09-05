@@ -1,7 +1,8 @@
 #pragma once
 
-#include <tesla.hpp>
-#include <utils.hpp>
+#include "path_funcs.hpp"
+#include "tesla.hpp"
+#include "utils.hpp"
 
 class KipInfoOverlay : public tsl::Gui {
 private:

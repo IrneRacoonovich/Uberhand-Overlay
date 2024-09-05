@@ -1,12 +1,23 @@
 #define NDEBUG
-#define STBTT_STATIC
 #define TESLA_INIT_IMPL
 
-#include <FanSliderOverlay.hpp>
-#include <KipInfoOverlay.hpp>
-#include <switch/kernel/thread.h>
-#include <tesla.hpp>
-#include <utils.hpp>
+#include "FanSliderOverlay.hpp"
+#include "KipInfoOverlay.hpp"
+#include "debug_funcs.hpp"
+#include "download_funcs.hpp"
+#include "hex_funcs.hpp"
+#include "json_funcs.hpp"
+#include "tesla.hpp"
+#include "utils.hpp"
+
+#include <switch.h>
+#include <sys/stat.h>
+
+// externs from utils.hpp
+bool applied = false;
+bool deleted = false;
+bool resetValue = false;
+std::string prevValue = "";
 
 // Overlay booleans
 static bool defaultMenuLoaded = true;

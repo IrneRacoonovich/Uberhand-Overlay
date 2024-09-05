@@ -1,7 +1,8 @@
 #pragma once
 
-#include <tesla.hpp>
-#include <utils.hpp>
+#include "tesla.hpp"
+#include "text_funcs.hpp"
+#include "utils.hpp"
 
 class HelpOverlay : public tsl::Gui {
 private:

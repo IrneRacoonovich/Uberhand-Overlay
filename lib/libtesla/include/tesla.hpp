@@ -362,8 +362,8 @@ namespace tsl {
 
         namespace ini {
 
-            const char* TESLA_CONFIG = "/config/tesla/config.ini";
-            const char* UBERHAND_CONFIG = "/config/uberhand/config.ini";
+            constexpr const char* TESLA_CONFIG = "/config/tesla/config.ini";
+            constexpr const char* UBERHAND_CONFIG = "/config/uberhand/config.ini";
 
             /**
              * @brief Ini file type
