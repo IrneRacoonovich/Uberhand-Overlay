@@ -1,5 +1,7 @@
 #pragma once
 
+#include "IniSection.hpp"
+
 #include <dirent.h>
 #include <download_funcs.hpp>
 #include <fnmatch.h>
