@@ -836,16 +836,16 @@ public:
         }
 
         myArray.shrink_to_fit();
-        auto slider = new tsl::elm::NamedStepTrackBar(" ",myArray,slider_prompt);
+        auto slider = new tsl::elm::NamedStepTrackBar(" ", myArray, slider_prompt);
 
         std::string currentHex = readHexDataAtOffset("/atmosphere/kips/loader.kip", CUST, std::stoul(offset), 4);
 
         if (has_zero && reversedHexToInt(currentHex) == 0) {
             initProgress = 0;
         } else if (has_zero) {
-            initProgress = ((reversedHexToInt(currentHex) - low)/step) + 1;
+            initProgress = ((reversedHexToInt(currentHex) - low) / step) + 1;
         } else {
-            initProgress = (reversedHexToInt(currentHex) - low)/step;
+            initProgress = (reversedHexToInt(currentHex) - low) / step;
         }
 
         slider->setProgress(initProgress);
@@ -857,7 +857,7 @@ public:
                     if (slider->getProgressStep() == 0) {
                         value = 0;
                     } else {
-                        value = low + (step * (slider->getProgressStep()-1));
+                        value = low + (step * (slider->getProgressStep() - 1));
                     }
                 } else {
                     value = low + (step * slider->getProgressStep());
@@ -872,7 +872,7 @@ public:
             return false;
         });
         return slider;
-    } 
+    }
 
     std::string findCurrentIni(const std::string& jsonPath, const std::string& iniPath, const std::string& section, const std::string& key)
     {

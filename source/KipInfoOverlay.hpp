@@ -82,11 +82,11 @@ public:
     {
         // process right stick scrolling
         if ((keysHeld | keysDown) & (HidNpadButton_StickRDown)) {
-            this->p_list->handleInput(HidNpadButton_StickRDown, 0,{},{},{});
+            this->p_list->handleInput(HidNpadButton_StickRDown, 0, {}, {}, {});
             return true;
         }
         if ((keysHeld | keysDown) & (HidNpadButton_StickRUp)) {
-            this->p_list->handleInput(HidNpadButton_StickRUp, 0,{},{},{});
+            this->p_list->handleInput(HidNpadButton_StickRUp, 0, {}, {}, {});
             return true;
         }
         if (!isFirstPage && (keysDown & KEY_B)) {
